@@ -22,6 +22,11 @@ class Item {
         int y_UR_coord;
         int x_UL_coord;
         int y_UL_coord;
+        int x_LR_coord;
+        int y_LR_coord;
+
+        // Indicador de si esta flipeado o no
+        bool fliped = false;
 
         // Dimensiones del objeto
         int width;
@@ -41,6 +46,7 @@ class Item {
             tmp = width;
             width = height;
             height = tmp;
+            fliped = true;
         }
 
         void move_down(){
@@ -55,16 +61,6 @@ class Item {
         void place_item(int x_coord_new, int y_coord_new){
             set_x_LL_coord(x_coord_new);
             set_y_LL_coord(y_coord_new);
-            calculate_x_UR_coord();
-            calculate_y_UR_coord();
-        }
-
-        void calculate_x_UR_coord(){
-            x_UR_coord = x_LL_coord + get_width();
-        }
-
-        void calculate_y_UR_coord(){
-            y_UR_coord = y_LL_coord + get_height();
         }
 
         // Setters & Getters
@@ -76,13 +72,15 @@ class Item {
         }
         void set_x_LL_coord(int new_coord) {
             x_LL_coord = new_coord;
-            calculate_x_UR_coord();
-            x_UL_coord = new_coord();
+            x_UL_coord = x_LL_coord;
+            x_UR_coord = new_coord + get_width();
+            x_LR_coord = x_UR_coord;
         }
         void set_y_LL_coord(int new_coord) {
             y_LL_coord = new_coord;
-            calculate_y_UR_coord();
-            y_UL_coord = new_coord + get_height()
+            y_UR_coord = y_LL_coord + get_height();
+            y_UL_coord = y_UR_coord;
+            y_LR_coord = y_LL_coord;
         }
 
         int get_width() const{
@@ -108,12 +106,24 @@ class Item {
             return x_UL_coord;
         }
 
-        int get_y_UL_cood() const{
+        int get_y_UL_coord() const{
             return y_UL_coord;
+        }
+
+        int get_y_LR_coord() const{
+            return y_LR_coord;
+        }
+
+        int get_x_LR_coord() const{
+            return x_LR_coord;
         }
 
         int get_id() const{
             return id;
+        }
+
+        bool get_fliped() const{
+            return fliped;
         }
         void set_id(int new_id){
             id = new_id;
@@ -129,6 +139,7 @@ class Cinta {
         int n_objetos;
         int start_placement_x; // Punto de origen desde el que comenzar a mover los articulos en la cinta, esq. sup. derecha
         int start_placement_y;
+        int n_placed = 0;
         vector<int> final_placement;
         //list<Item> s_n; // Solución a evaluar --> creo que esto deberia estar en la funcion de HC
         list<Item> items_to_place;
@@ -158,33 +169,71 @@ class Cinta {
 
         // Nota: Al pasar solo las coordenadas ahorramos tiempo de procesamiento porque la cpu no tiene que copiar todo
         // El objeto Articulo
-        bool try_down(int x_LL, int y_LL, int x_UR, int y_UR){
+        bool try_down(Item item_to_place){
             bool overlap;
-            if(y_LL-1 < 0){ // Limite de la cinta
+            if(item_to_place.get_y_LL_coord()-1 < 0){
                 return false;
             }
-            for(auto const& item : placed_items){
-                overlap = x_UR < item.get_x_UR_coord() && y_UR-1 < item.get_y_UR_coord() &&
-                                x_LL > item.get_x_LL_coord() && y_LL-1 > item.get_y_LL_coord();
-                if(overlap){
+            // Solo necesitamos chequear colisiones en las esquinas LL y LR cuando nos movemos hacia abajo
+            for(auto const& placed_item : placed_items){
+                bool overlap_LL_toPlace = item_to_place.get_x_LL_coord() < placed_item.get_x_UR_coord() && 
+                                item_to_place.get_y_LL_coord()-1 < placed_item.get_y_UR_coord() &&
+                                item_to_place.get_x_LL_coord() > placed_item.get_x_LL_coord() &&
+                                item_to_place.get_y_LL_coord()-1 > placed_item.get_y_LL_coord();
+
+                
+                bool overlap_LR_toPlace = item_to_place.get_x_LR_coord() < placed_item.get_x_UR_coord() && 
+                                item_to_place.get_y_LR_coord()-1 < placed_item.get_y_UR_coord() &&
+                                item_to_place.get_x_LR_coord() > placed_item.get_x_LL_coord() &&
+                                item_to_place.get_y_LR_coord()-1 > placed_item.get_y_LL_coord();
+
+                // Ahora chequear si alguna esquina de un item ya emplazado entro en el item a emplazar
+                bool overlap_UR_placed = (placed_item.get_x_UR_coord() < item_to_place.get_x_UR_coord()) && 
+                                (placed_item.get_y_UR_coord() < item_to_place.get_y_UR_coord()-1) &&
+                                (placed_item.get_x_UR_coord() > item_to_place.get_x_LL_coord()) &&
+                                (placed_item.get_y_UR_coord() > item_to_place.get_y_LL_coord()-1);
+
+                bool overlap_UL_placed = (placed_item.get_x_UL_coord() < item_to_place.get_x_UR_coord()) && 
+                                (placed_item.get_y_UL_coord() < item_to_place.get_y_UR_coord()-1) &&
+                                (placed_item.get_x_UL_coord() > item_to_place.get_x_LL_coord()) &&
+                                (placed_item.get_y_UL_coord() > item_to_place.get_y_LL_coord()-1);
+
+                if(overlap_LL_toPlace || overlap_LR_toPlace || overlap_UR_placed || overlap_UL_placed){
                     return false;
                 }
             }
             return true;
         }
 
-        bool try_left(int x_LL, int y_LL, int x_UR, int y_UR){
+        bool try_left(auto item_to_place){
             bool overlap;
-            if(x_LL-1 < 0){
+            if(item_to_place.get_x_LL_coord()-1 < 0){
                 return false;
             }
-            for(auto const& item : placed_items){
-                overlap_LL = (x_LL-1 < item.get_x_UR_coord() && y_LL < item.get_y_UR_coord()) &&
-                                (x_LL-1 > item.get_x_LL_coord() && y_LL > item.get_y_LL_coord());
+            // Solo necesitamos chequear colisiones en las esquinas LL y UL cuando nos movemos hacia el lado
+            for(auto const& placed_item : placed_items){
+                bool overlap_LL_toPlace = (item_to_place.get_x_LL_coord()-1 < placed_item.get_x_UR_coord()) && 
+                                (item_to_place.get_y_LL_coord() < placed_item.get_y_UR_coord()) &&
+                                (item_to_place.get_x_LL_coord()-1 > placed_item.get_x_LL_coord()) &&
+                                (item_to_place.get_y_LL_coord() > placed_item.get_y_LL_coord());
 
-                overlap_UL = (x_LL-1 < item.get_x_UL_coord() && y_LL < item.get_y_UR_coord()) &&
-                                (x_LL-1 > item.get_x_LL_coord() && y_LL > item.get_y_LL_coord());
-                if(overlap){
+                bool overlap_UL_toPlace = (item_to_place.get_x_UL_coord()-1 < placed_item.get_x_UR_coord()) && 
+                                (item_to_place.get_y_UL_coord() < placed_item.get_y_UR_coord()) &&
+                                (item_to_place.get_x_UL_coord()-1 > placed_item.get_x_LL_coord()) &&
+                                (item_to_place.get_y_UL_coord() > placed_item.get_y_LL_coord());
+
+                // Ahora chequear si alguna esquina de un item ya emplazado entro en el item a emplazar
+                bool overlap_LR_placed = (placed_item.get_x_LR_coord() < item_to_place.get_x_UR_coord()-1) && 
+                                (placed_item.get_y_LR_coord() < item_to_place.get_y_UR_coord()) &&
+                                (placed_item.get_x_LR_coord() > item_to_place.get_x_LL_coord()-1) &&
+                                (placed_item.get_y_LR_coord() > item_to_place.get_y_LL_coord());
+
+                bool overlap_UR_placed = (placed_item.get_x_UR_coord() < item_to_place.get_x_UR_coord()-1) && 
+                                (placed_item.get_y_UR_coord() < item_to_place.get_y_UR_coord()) &&
+                                (placed_item.get_x_UR_coord() > item_to_place.get_x_LL_coord()-1) &&
+                                (placed_item.get_y_UR_coord() > item_to_place.get_y_LL_coord());
+
+                if(overlap_LL_toPlace || overlap_UL_toPlace || overlap_LR_placed || overlap_UR_placed){
                     return false;
                 }
             }
@@ -233,37 +282,37 @@ class Cinta {
             // Posicion inicial de los objetos
             without_flip.place_item(get_max_width()-without_flip.get_width(), get_total_height()+1);
             with_flip.place_item(get_max_width()-with_flip.get_width(), get_total_height()+1);
-            cout << "----------------------------------------"<< endl;
-            cout << "Max width: " << get_max_width() << endl;
-            cout << "Total Height: " << get_total_height() << endl;
-            cout << "Id articulo: " << articulo.get_id() << endl;
+            //cout << "----------------------------------------"<< endl;
+            //cout << "Max width: " << get_max_width() << endl;
+            //cout << "Total Height: " << get_total_height() << endl;
+            //cout << "Id articulo: " << articulo.get_id() << endl;
             if(without_flip.get_x_LL_coord() < 0){
                 fit_without_flip = false;
             }
             if(with_flip.get_x_LL_coord() < 0){
                 fit_with_flip = false;
             }
-            if(fit_with_flip){
-                cout << "Posicion inicial con flip: "<< endl;
-                cout << "x_LL: " << with_flip.get_x_LL_coord() << endl;
-                cout << "y_LL: " << with_flip.get_y_LL_coord() << endl;
-            }
-            if(fit_without_flip){
-                cout << "Posicion inicial sin flip: " << endl;
-                cout << "x_LL: " << without_flip.get_x_LL_coord() << endl;
-                cout << "y_LL: " << without_flip.get_y_LL_coord() << endl;
-            }
-            cout << "...." << endl;
+            //if(fit_with_flip){
+            //    cout << "Posicion inicial con flip: "<< endl;
+            //    cout << "x_LL: " << with_flip.get_x_LL_coord() << endl;
+            //    cout << "y_LL: " << with_flip.get_y_LL_coord() << endl;
+            //}
+            //if(fit_without_flip){
+            //    cout << "Posicion inicial sin flip: " << endl;
+            //    cout << "x_LL: " << without_flip.get_x_LL_coord() << endl;
+            //    cout << "y_LL: " << without_flip.get_y_LL_coord() << endl;
+            //}
+            //cout << "...." << endl;
 
 
             // articulo sin flip
+            //cout << "Item ID: " << articulo.get_id() << endl;
             if(fit_without_flip){
                 while(!final_flag){ // O(ancho_cinta*altura_emplazado)
                     while(!tope_horizontal){ // O(ancho_cinta-ancho_item)
                         while(!tope_vertical){ // O(altura_emplazado)
-                            if(try_down(without_flip.get_x_LL_coord(), without_flip.get_y_LL_coord(),
-                                        without_flip.get_x_UR_coord(), without_flip.get_y_UR_coord())){
-                                            //cout << "movimiento hacia abajo"<< endl;
+                            if(try_down(without_flip)){
+                                //cout << "movimiento hacia abajo"<< endl;
                                 without_flip.move_down();
                                 //cout << "y_LL: " << without_flip.get_y_LL_coord();
                             }
@@ -271,8 +320,8 @@ class Cinta {
                                 tope_vertical = true;
                             }
                         }
-                        if(try_left(without_flip.get_x_LL_coord(), without_flip.get_y_LL_coord(),
-                                    without_flip.get_x_UR_coord(), without_flip.get_y_UR_coord())){
+                        if(try_left(without_flip)){
+                            //cout << "Movimiento hacia la izquierda" << endl;
                             without_flip.move_left();
                             tope_vertical = false;
                         }
@@ -285,6 +334,8 @@ class Cinta {
                     }
                 }
                 altura_without_flip =  max(pre_insert_height, without_flip.get_y_UR_coord());
+                //cout << "altura without flip: " << altura_without_flip << endl;
+
             }
             final_flag = false;
             tope_vertical = false;
@@ -295,16 +346,14 @@ class Cinta {
                 while(!final_flag){ // O(ancho_cinta*altura_emplazado)
                     while(!tope_horizontal){ // O(ancho_cinta-ancho_item)
                         while(!tope_vertical){ // O(altura_emplazado)
-                            if(try_down(with_flip.get_x_LL_coord(), with_flip.get_y_LL_coord(),
-                                        with_flip.get_x_UR_coord(), with_flip.get_y_UR_coord())){
+                            if(try_down(with_flip)){
                                 with_flip.move_down();
                             }
                             else{
                                 tope_vertical = true;
                             }
                         }
-                        if(try_left(with_flip.get_x_LL_coord(), with_flip.get_y_LL_coord(),
-                                    with_flip.get_x_UR_coord(), with_flip.get_y_UR_coord())){
+                        if(try_left(with_flip)){
                             with_flip.move_left();
                             tope_vertical = false;
                         }
@@ -318,18 +367,19 @@ class Cinta {
                 }
 
                 altura_with_flip =  max(pre_insert_height, with_flip.get_y_UR_coord());
+                //cout << "altura with flip: " << altura_with_flip << endl;
             }
             // actualizacion del articulo e insercion a la lista de emplazados
             if(fit_with_flip && fit_without_flip){
                 if(altura_without_flip <= altura_with_flip){
-                    cout << "Mejor sin flip"<< endl;
+                    //cout << "Mejor sin flip"<< endl;
                     articulo.set_x_LL_coord(without_flip.get_x_LL_coord());
                     articulo.set_y_LL_coord(without_flip.get_y_LL_coord());
                     articulo.set_width(without_flip.get_width());
                     articulo.set_height(without_flip.get_height());
                 }
                 else{
-                    cout << "Mejor con flip"<< endl;
+                    //cout << "Mejor con flip"<< endl;
                     articulo.set_x_LL_coord(with_flip.get_x_LL_coord());
                     articulo.set_y_LL_coord(with_flip.get_y_LL_coord());
                     articulo.set_width(with_flip.get_width());
@@ -337,14 +387,14 @@ class Cinta {
                 }
             }
             else if(fit_with_flip && !fit_without_flip){
-                cout << "Mejor con flip"<< endl;
+                //cout << "Mejor con flip"<< endl;
                 articulo.set_x_LL_coord(with_flip.get_x_LL_coord());
                 articulo.set_y_LL_coord(with_flip.get_y_LL_coord());
                 articulo.set_width(with_flip.get_width());
                 articulo.set_height(with_flip.get_height());
             }
             else if(fit_without_flip && !fit_with_flip){
-                cout << "Mejor sin flip"<< endl;
+                //cout << "Mejor sin flip"<< endl;
                 articulo.set_x_LL_coord(without_flip.get_x_LL_coord());
                 articulo.set_y_LL_coord(without_flip.get_y_LL_coord());
                 articulo.set_width(without_flip.get_width());
@@ -355,17 +405,18 @@ class Cinta {
                 return;
             }
             append_placed_item(articulo);
-            cout << "Posicion final: "<< endl;
-            cout << "x_LL: " << articulo.get_x_LL_coord() << endl;
-            cout << "y_LL: " << articulo.get_y_LL_coord() << endl;
-            cout << "x_UR: " << articulo.get_x_UR_coord() << endl;
-            cout << "y_UR: " << articulo.get_y_UR_coord() << endl;
+            //cout << "Posicion final: "<< endl;
+            //cout << "x_LL: " << articulo.get_x_LL_coord() << endl;
+            //cout << "y_LL: " << articulo.get_y_LL_coord() << endl;
+            //cout << "x_UR: " << articulo.get_x_UR_coord() << endl;
+            //cout << "y_UR: " << articulo.get_y_UR_coord() << endl;
         }
 
         void append_placed_item(Item item){
             placed_items.push_back(item);
             set_total_height(max(item.get_y_UR_coord(), get_total_height()));
             set_used_area(get_used_area() + item.get_height()*item.get_width());
+            n_placed++;
         }
         
         // Setters & Getters
@@ -482,6 +533,7 @@ void display(vector<int> ids_vector)
 //Hill Climbing + MM
 
 void hillClimbing_MM(Cinta& cinta_inst){ // Por ahora lo implementare sin Restart --> TODO
+    std::srand(unsigned(std::time(0)));
     // Representacion: Lista de id's de los items en el orden de insercion
     int items_id[cinta_inst.get_n_objetos()];
     int best_order[cinta_inst.get_n_objetos()];
@@ -494,7 +546,8 @@ void hillClimbing_MM(Cinta& cinta_inst){ // Por ahora lo implementare sin Restar
         s_c.push_back(item.get_id());
     }
     random_shuffle(s_c.begin(), s_c.end()); // inicializacion aleatoria de s_c
-    
+    cout << "Ids iniciales: ";
+    display(s_c);
     Cinta tmp_cinta = cinta_inst;
     for(int const& id: s_c){
         tmp_cinta.apply_BL(cinta_inst.get_item_by_id(id));
@@ -514,14 +567,14 @@ void hillClimbing_MM(Cinta& cinta_inst){ // Por ahora lo implementare sin Restar
                 vector<int> tmp_ids = s_c; // 1. Hacer una copia del arreglo original
                 Cinta tmp_cinta = cinta_inst; // Hacer una copia de la cinta
                 swap(tmp_ids[i_left], tmp_ids[i_right]); // 2. Hacer swap de las posiciones i_left con i_right, este es el movimiento
-                cout << "Probando: ";
-                display(tmp_ids);
+                //cout << "Probando: ";
+                //display(tmp_ids);
                 for(int const& item_id: tmp_ids){
                     tmp_cinta.apply_BL(tmp_cinta.get_item_by_id(item_id)); // 4. Hacer BL sobre la copia con swap y la cinta
                 }
                 int f_s_n_tmp = tmp_cinta.get_total_height(); // valor de la funcion de evaluacion para cada movimiento
-                cout << "Altura alcanzada: " <<  f_s_n_tmp;
-                cout << endl;
+                //cout << "Altura alcanzada: " <<  f_s_n_tmp;
+                //cout << endl;
                 if(f_s_n_tmp < best_f_s_n){
                     best_f_s_n = f_s_n_tmp;
                     best_s_n = tmp_ids;
@@ -529,8 +582,8 @@ void hillClimbing_MM(Cinta& cinta_inst){ // Por ahora lo implementare sin Restar
             }
         }
         if(best_f_s_n <= f_s_c){ // Actualizar s_c
-            cout << "Best f_s_n: " << best_f_s_n << endl;
-            cout << "Best f_s_c: " << f_s_c << endl;
+            //cout << "Best f_s_n: " << best_f_s_n << endl;
+            //cout << "Best f_s_c: " << f_s_c << endl;
             f_s_c = best_f_s_n;
             s_c = best_s_n;
             n_iter++;
@@ -542,16 +595,26 @@ void hillClimbing_MM(Cinta& cinta_inst){ // Por ahora lo implementare sin Restar
     }while(!local && n_iter <= max_iter);
 
     // Actualizar la instancia de la cinta original con el orden encontrado de articulos y aplicar BL para dejarlos emplazados
-    for(int const& item_id: s_c){
-        cinta_inst.append_placed_item(cinta_inst.get_item_by_id(item_id));
-    }
     cinta_inst.set_final_placement(s_c);
+    
+    vector<int> final_placement = cinta_inst.get_final_placement();
     cout << "---------- RESULTADO FINAL ----------" << endl;
     cout << "Emplazamiento final: ";
-    vector<int> final_placement = cinta_inst.get_final_placement();
+    display(cinta_inst.get_final_placement());
+    cout << endl;
     for(int const& id: final_placement){
+        cout << "Ingresando: " << id << endl;
         cinta_inst.apply_BL(cinta_inst.get_item_by_id(id));
     }
+    //for(int const& item_id: s_c){
+    //    cinta_inst.append_placed_item(cinta_inst.get_item_by_id(item_id));
+    //    cout << "Id: " << item_id << endl;
+    //    cout << "x_LL: " << cinta_inst.get_item_by_id(item_id).get_x_LL_coord() << endl;
+    //    cout << "y_LL: " << cinta_inst.get_item_by_id(item_id).get_y_LL_coord() << endl;
+    //    cout << "Fliped: " << cinta_inst.get_item_by_id(item_id).get_fliped() << endl;
+    //    cout << "-------" << endl;
+    //}
+    cout << "Cantidad de items en la lista de emplazados: " << cinta_inst.n_placed << endl;
     cout << "Altura Final Alcanzada: " << cinta_inst.get_total_height() << endl;
 }
 
