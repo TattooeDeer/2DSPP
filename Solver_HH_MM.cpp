@@ -122,12 +122,18 @@ class Item {
             return id;
         }
 
+        void set_id(int new_id){
+            id = new_id;
+        }
+        
         bool get_fliped() const{
             return fliped;
         }
-        void set_id(int new_id){
-            id = new_id;
-        } 
+
+        void set_fliped(bool new_flip){
+            fliped = new_flip;
+        }
+
 };
 
 class Cinta {
@@ -240,6 +246,7 @@ class Cinta {
             return true;
 
         }
+
 
         Item get_item_by_id(int id){
             for(auto const& item : items_to_place){
@@ -370,6 +377,7 @@ class Cinta {
                 //cout << "altura with flip: " << altura_with_flip << endl;
             }
             // actualizacion del articulo e insercion a la lista de emplazados
+            // Si cabe de ambas formas comparamos alturas
             if(fit_with_flip && fit_without_flip){
                 if(altura_without_flip <= altura_with_flip){
                     //cout << "Mejor sin flip"<< endl;
@@ -377,6 +385,7 @@ class Cinta {
                     articulo.set_y_LL_coord(without_flip.get_y_LL_coord());
                     articulo.set_width(without_flip.get_width());
                     articulo.set_height(without_flip.get_height());
+                    articulo.set_fliped(without_flip.get_fliped());
                 }
                 else{
                     //cout << "Mejor con flip"<< endl;
@@ -384,21 +393,25 @@ class Cinta {
                     articulo.set_y_LL_coord(with_flip.get_y_LL_coord());
                     articulo.set_width(with_flip.get_width());
                     articulo.set_height(with_flip.get_height());
+                    articulo.set_fliped(with_flip.get_fliped());
                 }
             }
+            // Si no cabe sin flip solo consideramos el con flip
             else if(fit_with_flip && !fit_without_flip){
-                //cout << "Mejor con flip"<< endl;
+                //cout << "Cabe solo con flip"<< endl;
                 articulo.set_x_LL_coord(with_flip.get_x_LL_coord());
                 articulo.set_y_LL_coord(with_flip.get_y_LL_coord());
                 articulo.set_width(with_flip.get_width());
                 articulo.set_height(with_flip.get_height());
+                articulo.set_fliped(with_flip.get_fliped());
             }
             else if(fit_without_flip && !fit_with_flip){
-                //cout << "Mejor sin flip"<< endl;
+                //cout << "Cabe solo sin flip"<< endl;
                 articulo.set_x_LL_coord(without_flip.get_x_LL_coord());
                 articulo.set_y_LL_coord(without_flip.get_y_LL_coord());
                 articulo.set_width(without_flip.get_width());
                 articulo.set_height(without_flip.get_height());
+                articulo.set_fliped(without_flip.get_fliped());
             }
             else{
                 cout << "El objeto de ID " << articulo.get_id() << "Es demasiado grande para la cinta";
@@ -418,6 +431,7 @@ class Cinta {
             set_used_area(get_used_area() + item.get_height()*item.get_width());
             n_placed++;
         }
+
         
         // Setters & Getters
         void set_items_to_place(list<Item> lista_items){
@@ -493,11 +507,10 @@ class Cinta {
 
         void set_final_placement(vector<int> sol){
             final_placement = sol;
-            //for(auto const& item: placed_items){
-            //    //cout << item.get_id() << "  ";
-//
-            //}
-            //cout << endl;
+        }
+
+        list<Item> get_placed_items(){
+            return placed_items;
         }
 
         void set_start_placement_x(int start_x); // TODO
@@ -507,21 +520,12 @@ class Cinta {
 };
 
 
+// Funciones y estructuras utiles
 struct data_instancia {
         int n_objetos;
         int width;
         list<Item> instance_obj;
 };
-// Funciones utiles
-
-/*
-void display(int a[], int n) 
-{ 
-    for (int i = 0; i < n; i++) { 
-        cout << a[i] << "  "; 
-    } 
-    cout << endl; 
-} */
 
 void display(vector<int> ids_vector) 
 { 
@@ -606,16 +610,16 @@ void hillClimbing_MM(Cinta& cinta_inst){ // Por ahora lo implementare sin Restar
         cout << "Ingresando: " << id << endl;
         cinta_inst.apply_BL(cinta_inst.get_item_by_id(id));
     }
-    //for(int const& item_id: s_c){
-    //    cinta_inst.append_placed_item(cinta_inst.get_item_by_id(item_id));
-    //    cout << "Id: " << item_id << endl;
-    //    cout << "x_LL: " << cinta_inst.get_item_by_id(item_id).get_x_LL_coord() << endl;
-    //    cout << "y_LL: " << cinta_inst.get_item_by_id(item_id).get_y_LL_coord() << endl;
-    //    cout << "Fliped: " << cinta_inst.get_item_by_id(item_id).get_fliped() << endl;
-    //    cout << "-------" << endl;
-    //}
+    
     cout << "Cantidad de items en la lista de emplazados: " << cinta_inst.n_placed << endl;
     cout << "Altura Final Alcanzada: " << cinta_inst.get_total_height() << endl;
+    //for(Item const& item: cinta_inst.get_placed_items()){
+    //    cout << "Id: " << item.get_id() << endl;
+    //    cout << "x_LL: " << item.get_x_LL_coord() << endl;
+    //    cout << "y_LL: " << item.get_y_LL_coord() << endl;
+    //    cout << "Fliped: " << item.get_fliped() << endl;
+    //    cout << "-------" << endl;
+    //}
 }
 
 // Parsea la linea y retorna un struct con la info para inicializar los objetos a emplazar -- DEPRECATED
@@ -648,6 +652,7 @@ data_instancia read_instance(string file_path_buff = "test.txt"){
 
         if (line_number == 0){
             instancia.n_objetos = atoi(line.c_str());
+            cout << "reading n_obj: " << instancia.n_objetos << endl;
         }
         else if (line_number == 1){
             instancia.width = atoi(line.c_str());
