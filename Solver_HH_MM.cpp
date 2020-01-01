@@ -536,70 +536,111 @@ void display(vector<int> ids_vector)
 } 
 //Hill Climbing + MM
 
-void hillClimbing_MM(Cinta& cinta_inst){ // Por ahora lo implementare sin Restart --> TODO
+void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 5){
     std::srand(unsigned(std::time(0)));
     // Representacion: Lista de id's de los items en el orden de insercion
     int items_id[cinta_inst.get_n_objetos()];
     int best_order[cinta_inst.get_n_objetos()];
-    int best_height = 9999; // por ahora fijare esto asi, lo ideal sería fijarlo de acuerdo a alguna cota superior
-    bool local = false; // minimo local
+    //int best_height = 9999; // por ahora fijare esto asi, lo ideal sería fijarlo de acuerdo a alguna cota superior
+    //bool local = false; // minimo local
     vector<int> initial_ids; 
     vector<int> s_c; // Solucion Actual, se inicializa con un orden aleatorio de items
+    
 
-    for(auto const& item : cinta_inst.items_to_place){
-        s_c.push_back(item.get_id());
-    }
-    random_shuffle(s_c.begin(), s_c.end()); // inicializacion aleatoria de s_c
-    cout << "Ids iniciales: ";
-    display(s_c);
-    Cinta tmp_cinta = cinta_inst;
-    for(int const& id: s_c){
-        tmp_cinta.apply_BL(cinta_inst.get_item_by_id(id));
-    }
+    //for(auto const& item : cinta_inst.items_to_place){
+    //    s_c.push_back(item.get_id());
+    //}
+    //random_shuffle(s_c.begin(), s_c.end()); // inicializacion aleatoria de s_c
+    //cout << "Ids iniciales: ";
+    //display(s_c);
+    //Cinta tmp_cinta = cinta_inst;
+    //for(int const& id: s_c){
+    //    tmp_cinta.apply_BL(cinta_inst.get_item_by_id(id));
+    //}
 
-    int f_s_c = tmp_cinta.get_total_height();
+    
+    
+    // F y S para todos los restart
+    vector<int> restart_s_c;
+    int restart_f_s_c = 9999;
 
     int n = cinta_inst.get_n_objetos();
-    //sort(s_c, s_c + n);
-    int best_f_s_n = f_s_c;
-    vector<int> best_s_n = s_c;
+    // F y S de inicio para el 1er restart
+    
     int max_iter = 10;
-    int n_iter = 0;
+    //int n_iter = 0; // Controla cuantas veces, como maximo se intensifica
+    int i_restarts = 0; // Controla cuantas veces se diversifica
+
     do{
-        for(int i_left = 0; i_left < n-1; i_left = i_left+1){
-            for(int i_right = 0; i_right < n; i_right = i_right+1){ // El vecindario esta definido por un solo swap entre dos elementos del arreglo de ids
-                vector<int> tmp_ids = s_c; // 1. Hacer una copia del arreglo original
-                Cinta tmp_cinta = cinta_inst; // Hacer una copia de la cinta
-                swap(tmp_ids[i_left], tmp_ids[i_right]); // 2. Hacer swap de las posiciones i_left con i_right, este es el movimiento
-                //cout << "Probando: ";
-                //display(tmp_ids);
-                for(int const& item_id: tmp_ids){
-                    tmp_cinta.apply_BL(tmp_cinta.get_item_by_id(item_id)); // 4. Hacer BL sobre la copia con swap y la cinta
-                }
-                int f_s_n_tmp = tmp_cinta.get_total_height(); // valor de la funcion de evaluacion para cada movimiento
-                //cout << "Altura alcanzada: " <<  f_s_n_tmp;
-                //cout << endl;
-                if(f_s_n_tmp < best_f_s_n){
-                    best_f_s_n = f_s_n_tmp;
-                    best_s_n = tmp_ids;
+        cout <<"** Iteracion N°"<< i_restarts << endl;
+       
+        for(auto const& item : cinta_inst.items_to_place){
+        s_c.push_back(item.get_id());
+        }
+        random_shuffle(s_c.begin(), s_c.end()); // inicializacion aleatoria de s_c
+        cout << "<-------------------- Restart -------------------->" << endl;
+        cout << "-Punto de inicio: "; 
+        display(s_c);
+
+        Cinta tmp_cinta = cinta_inst;
+        for(int const& id: s_c){
+            tmp_cinta.apply_BL(cinta_inst.get_item_by_id(id));
+        }
+        int f_s_c = tmp_cinta.get_total_height();
+        int n_iter = 0; // Controla cuantas veces, como maximo se intensifica
+        bool local = false; // minimo local
+        int best_height = 9999; // por ahora fijare esto asi, lo ideal sería fijarlo de acuerdo a alguna cota superior
+
+        int best_f_s_n = f_s_c;
+        vector<int> best_s_n = s_c;
+        do{
+            for(int i_left = 0; i_left < n-1; i_left = i_left+1){
+                for(int i_right = 0; i_right < n; i_right = i_right+1){ // El vecindario esta definido por un solo swap entre dos elementos del arreglo de ids
+                    vector<int> tmp_ids = s_c; // 1. Hacer una copia del arreglo original
+                    Cinta tmp_cinta = cinta_inst; // Hacer una copia de la cinta
+                    swap(tmp_ids[i_left], tmp_ids[i_right]); // 2. Hacer swap de las posiciones i_left con i_right, este es el movimiento
+                    //cout << "Probando: ";
+                    //display(tmp_ids);
+                    for(int const& item_id: tmp_ids){
+                        tmp_cinta.apply_BL(tmp_cinta.get_item_by_id(item_id)); // 4. Hacer BL sobre la copia con swap y la cinta
+                    }
+                    int f_s_n_tmp = tmp_cinta.get_total_height(); // valor de la funcion de evaluacion para cada movimiento
+                    //cout << "Altura alcanzada: " <<  f_s_n_tmp;
+                    //cout << endl;
+                    if(f_s_n_tmp < best_f_s_n){
+                        best_f_s_n = f_s_n_tmp;
+                        best_s_n = tmp_ids;
+                    }
                 }
             }
-        }
-        if(best_f_s_n <= f_s_c){ // Actualizar s_c
-            //cout << "Best f_s_n: " << best_f_s_n << endl;
-            //cout << "Best f_s_c: " << f_s_c << endl;
-            f_s_c = best_f_s_n;
-            s_c = best_s_n;
-            n_iter++;
-        }
-        else{
-            local = true;
-        }
-        
-    }while(!local && n_iter <= max_iter);
+            if(best_f_s_n <= f_s_c){ // Actualizar s_c
+                //cout << "Best f_s_n: " << best_f_s_n << endl;
+                //cout << "Best f_s_c: " << f_s_c << endl;
+                f_s_c = best_f_s_n;
+                s_c = best_s_n;
+                n_iter++;
+            }
+            else{
+                local = true;
+            }
+
+        }while(!local && n_iter <= max_iter); 
+        cout << "- Optimo local: ";
+        display(s_c);
+        cout << "- Mejor valor de la funcion de evaluacion lograda: " << f_s_c << endl;
+
+        if(f_s_c < restart_f_s_c){ // Actualizar restart_s_c
+                restart_f_s_c = f_s_c;
+                restart_s_c = s_c;
+                cout << "Actualizacion del mejor optimo local obtenido."<< endl;
+            }
+
+        s_c.clear();
+        i_restarts++;
+    }while(i_restarts < n_restarts);
 
     // Actualizar la instancia de la cinta original con el orden encontrado de articulos y aplicar BL para dejarlos emplazados
-    cinta_inst.set_final_placement(s_c);
+    cinta_inst.set_final_placement(restart_s_c);
     
     vector<int> final_placement = cinta_inst.get_final_placement();
     cout << "---------- RESULTADO FINAL ----------" << endl;
