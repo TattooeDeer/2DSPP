@@ -4,7 +4,9 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
-#include <bits/stdc++.h> 
+#include <bits/stdc++.h>
+#include <chrono>
+
 
 
 using namespace std;
@@ -26,7 +28,7 @@ class Item {
         int y_LR_coord;
 
         // Indicador de si esta flipeado o no
-        bool fliped = false;
+        bool flipped = false;
 
         // Dimensiones del objeto
         int width;
@@ -46,7 +48,7 @@ class Item {
             tmp = width;
             width = height;
             height = tmp;
-            fliped = true;
+            flipped = true;
         }
 
         void move_down(){
@@ -128,12 +130,12 @@ class Item {
             id = new_id;
         }
         
-        bool get_fliped() const{
-            return fliped;
+        bool get_flipped() const{
+            return flipped;
         }
 
-        void set_fliped(bool new_flip){
-            fliped = new_flip;
+        void set_flipped(bool new_flip){
+            flipped = new_flip;
         }
 
 };
@@ -149,7 +151,6 @@ class Cinta {
         int start_placement_y;
         int n_placed = 0;
         vector<int> final_placement;
-        //list<Item> s_n; // Solución a evaluar --> creo que esto deberia estar en la funcion de HC
         list<Item> items_to_place;
         list<Item> placed_items;
 
@@ -194,6 +195,8 @@ class Cinta {
 
 
             for(auto const& placed_item : placed_items){
+                // Estas condiciones chequean si se llegan a sobreponer el articulo a emplazar
+                // con alguno de los emplazados ya en la cinta
                 bool overlap_LL_toPlace = item_to_place.get_x_LL_coord() < placed_item.get_x_UR_coord() && 
                                 item_to_place.get_y_LL_coord()-1 < placed_item.get_y_UR_coord() &&
                                 item_to_place.get_x_LL_coord() > placed_item.get_x_LL_coord() &&
@@ -342,10 +345,6 @@ class Cinta {
                 }
             without_flip.place_item(get_max_width()-without_flip.get_width(), get_total_height()+1);
             with_flip.place_item(get_max_width()-without_flip.get_height(), get_total_height()+1);
-            //cout << "----------------------------------------"<< endl;
-            //cout << "Max width: " << get_max_width() << endl;
-            //cout << "Total Height: " << get_total_height() << endl;
-            //cout << "Id articulo: " << articulo.get_id() << endl;
             if(without_flip.get_x_LL_coord() < 0){
                 fit_without_flip = false;
             }
@@ -366,7 +365,6 @@ class Cinta {
 
 
             // articulo sin flip
-            //cout << "Item ID: " << articulo.get_id() << endl;
             if(fit_without_flip){
                 if(verbose){cout << "#### Without Flip" << endl;}
                 while(!final_flag){ // O(ancho_cinta*altura_emplazado)
@@ -468,9 +466,10 @@ class Cinta {
                         }
                     articulo.set_width(without_flip.get_width());
                     articulo.set_height(without_flip.get_height());
-                    articulo.set_fliped(without_flip.get_fliped());
+                    articulo.set_flipped(without_flip.get_flipped());
                     articulo.set_x_LL_coord(without_flip.get_x_LL_coord());
                     articulo.set_y_LL_coord(without_flip.get_y_LL_coord());
+                    if(verbose){cout << "Flipped: " << articulo.get_flipped() << endl;}
                 }
                 else{
                     if(verbose){
@@ -480,9 +479,10 @@ class Cinta {
                         }
                     articulo.set_width(with_flip.get_width());
                     articulo.set_height(with_flip.get_height());
-                    articulo.set_fliped(with_flip.get_fliped());
+                    articulo.set_flipped(with_flip.get_flipped());
                     articulo.set_x_LL_coord(with_flip.get_x_LL_coord());
                     articulo.set_y_LL_coord(with_flip.get_y_LL_coord());
+                    if(verbose){cout << "Flipped: " << articulo.get_flipped() << endl;}
                 }
             }
             // Si no cabe sin flip solo consideramos el con flip
@@ -494,9 +494,10 @@ class Cinta {
                     }
                 articulo.set_width(with_flip.get_width());
                 articulo.set_height(with_flip.get_height());
-                articulo.set_fliped(with_flip.get_fliped());
+                articulo.set_flipped(with_flip.get_flipped());
                 articulo.set_x_LL_coord(with_flip.get_x_LL_coord());
                 articulo.set_y_LL_coord(with_flip.get_y_LL_coord());
+                if(verbose){cout << "Flipped: " << articulo.get_flipped() << endl;}
             }
             else if(fit_without_flip && !fit_with_flip){
                 if(verbose){
@@ -506,9 +507,10 @@ class Cinta {
                     }
                 articulo.set_width(without_flip.get_width());
                 articulo.set_height(without_flip.get_height());
-                articulo.set_fliped(without_flip.get_fliped());
+                articulo.set_flipped(without_flip.get_flipped());
                 articulo.set_x_LL_coord(without_flip.get_x_LL_coord());
                 articulo.set_y_LL_coord(without_flip.get_y_LL_coord());
+                if(verbose){cout << "Flipped: " << articulo.get_flipped() << endl;}
             }
             else{
                 cout << "El objeto de ID " << articulo.get_id() << " es demasiado grande para la cinta" << endl;
@@ -520,14 +522,10 @@ class Cinta {
                 cout << "LL: " << articulo.get_x_LL_coord() << ", " <<articulo.get_y_LL_coord() << endl;
                 cout << "UR: " << articulo.get_x_UR_coord() << ", " <<articulo.get_y_UR_coord() << endl;
 
-            }
-            
-            
-            
-            
+            } 
         }
 
-        void append_placed_item(Item item){
+        void append_placed_item(Item item){ // inserta un articulo en la lista de emplazados hasta el momento
             placed_items.push_back(item);
             set_total_height(max(item.get_y_UR_coord(), get_total_height()));
             set_used_area(get_used_area() + item.get_height()*item.get_width());
@@ -540,17 +538,17 @@ class Cinta {
             items_to_place = lista_items;
         }
 
-        int calculate_used_area(int area, bool set_used_area = true){
-            int total_area = 0;
-           for(auto const& item : placed_items){
-               total_area += (item.get_width()*item.get_height());
-           }
+        int calculate_used_area(bool set_used_area = true){
+                int total_area = 0;
+                for(auto const& item : placed_items){
+                   total_area += (item.get_width()*item.get_height());
+                }
 
-           if(set_used_area){
-               used_area = total_area;
-           }
+                if(set_used_area){
+                   used_area = total_area;
+                }
 
-           return total_area; 
+                return total_area;
         }
 
         void set_n_objetos(int n_obj){
@@ -581,23 +579,25 @@ class Cinta {
             total_height = new_height;
         }
 
-        int get_total_height(bool set_total_height = false){ // Esta es la funcion de evaluacion vainilla
-            int top_y_UR_corner = 0;
-            for(auto const& item : placed_items){
-                //cout << "placed_item height: " << item.get_y_UR_coord() << endl;
-               if(item.get_y_UR_coord() > top_y_UR_corner){
-                   top_y_UR_corner = item.get_y_UR_coord();
-               }
-           }
-           if(set_total_height){
-               total_height = top_y_UR_corner; 
-           }
-
-           return top_y_UR_corner;
+        int get_total_height(bool set_total_height = false){ // Esta es la funcion de evaluacion de la solucion
+            if(total_height != 0){
+                return total_height;
+            }
+            else{
+                int top_y_UR_corner = 0;
+                for(auto const& item : placed_items){
+                   if(item.get_y_UR_coord() > top_y_UR_corner){
+                       top_y_UR_corner = item.get_y_UR_coord();
+                   }
+                }
+                if(set_total_height){
+                   total_height = top_y_UR_corner; 
+                }
+                return top_y_UR_corner;
+           }    
         }
 
-        vector<int> get_final_placement(bool print_secuence = true){
-            //return final_placement;
+        vector<int> get_final_placement(bool print_secuence = false){
             if(print_secuence){
                 for(auto const& item: placed_items){
                     cout << item.get_id() << "  ";
@@ -614,10 +614,6 @@ class Cinta {
         list<Item> get_placed_items(){
             return placed_items;
         }
-
-        void set_start_placement_x(int start_x); // TODO
-
-        void set_start_placement_y(int start_y); // TODO
         
 };
 
@@ -635,33 +631,18 @@ void display(vector<int> ids_vector)
         cout << id << "  "; 
     } 
     cout << endl; 
-} 
+}
+
+
 //Hill Climbing + MM
 
-void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 10){
-    std::srand(unsigned(std::time(0)));
+void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 5){
     // Representacion: Lista de id's de los items en el orden de insercion
     int items_id[cinta_inst.get_n_objetos()];
     int best_order[cinta_inst.get_n_objetos()];
-    //int best_height = 9999; // por ahora fijare esto asi, lo ideal sería fijarlo de acuerdo a alguna cota superior
-    //bool local = false; // minimo local
     vector<int> initial_ids; 
     vector<int> s_c; // Solucion Actual, se inicializa con un orden aleatorio de items
-    
-
-    //for(auto const& item : cinta_inst.items_to_place){
-    //    s_c.push_back(item.get_id());
-    //}
-    //random_shuffle(s_c.begin(), s_c.end()); // inicializacion aleatoria de s_c
-    //cout << "Ids iniciales: ";
-    //display(s_c);
-    //Cinta tmp_cinta = cinta_inst;
-    //for(int const& id: s_c){
-    //    tmp_cinta.apply_BL(cinta_inst.get_item_by_id(id));
-    //}
-
-    
-    
+    std::srand(unsigned(std::time(0))); // Fijar la semilla, por ahora el tiempo pero esto debería poder setearse por argumentos
     // F y S para todos los restart
     vector<int> restart_s_c;
     int restart_f_s_c = 9999;
@@ -669,8 +650,7 @@ void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 10){
     int n = cinta_inst.get_n_objetos();
     // F y S de inicio para el 1er restart
     
-    int max_iter = 10;
-    //int n_iter = 0; // Controla cuantas veces, como maximo se intensifica
+    int max_iter = 30;// Controla cuantas veces, como maximo se intensifica
     int i_restarts = 0; // Controla cuantas veces se diversifica
 
     do{
@@ -678,6 +658,7 @@ void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 10){
         for(auto const& item : cinta_inst.items_to_place){
         s_c.push_back(item.get_id());
         }
+        
         random_shuffle(s_c.begin(), s_c.end()); // inicializacion aleatoria de s_c
         cout << "<-------------------- Restart -------------------->" << endl;
         cout <<"* Iteracion N°"<< i_restarts << endl;
@@ -689,7 +670,7 @@ void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 10){
             tmp_cinta.apply_BL(cinta_inst.get_item_by_id(id));
         }
         int f_s_c = tmp_cinta.get_total_height();
-        int n_iter = 0; // Controla cuantas veces, como maximo se intensifica
+        int n_iter = 30; // Controla cuantas veces, como maximo se intensifica
         bool local = false; // minimo local
         int best_height = 9999; // por ahora fijare esto asi, lo ideal sería fijarlo de acuerdo a alguna cota superior
 
@@ -701,14 +682,10 @@ void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 10){
                     vector<int> tmp_ids = s_c; // 1. Hacer una copia del arreglo original
                     Cinta tmp_cinta = cinta_inst; // Hacer una copia de la cinta
                     swap(tmp_ids[i_left], tmp_ids[i_right]); // 2. Hacer swap de las posiciones i_left con i_right, este es el movimiento
-                    //cout << "Probando: ";
-                    //display(tmp_ids);
                     for(int const& item_id: tmp_ids){
                         tmp_cinta.apply_BL(tmp_cinta.get_item_by_id(item_id)); // 4. Hacer BL sobre la copia con swap y la cinta
                     }
                     int f_s_n_tmp = tmp_cinta.get_total_height(); // valor de la funcion de evaluacion para cada movimiento
-                    //cout << "Altura alcanzada: " <<  f_s_n_tmp;
-                    //cout << endl;
                     if(f_s_n_tmp < best_f_s_n){
                         best_f_s_n = f_s_n_tmp;
                         best_s_n = tmp_ids;
@@ -716,8 +693,6 @@ void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 10){
                 }
             }
             if(best_f_s_n <= f_s_c){ // Actualizar s_c
-                //cout << "Best f_s_n: " << best_f_s_n << endl;
-                //cout << "Best f_s_c: " << f_s_c << endl;
                 f_s_c = best_f_s_n;
                 s_c = best_s_n;
                 n_iter++;
@@ -745,28 +720,24 @@ void hillClimbing_MM(Cinta& cinta_inst, int n_restarts = 10){
     cinta_inst.set_final_placement(restart_s_c);
     
     vector<int> final_placement = cinta_inst.get_final_placement();
-    cout << "---------- RESULTADO FINAL ----------" << endl;
-    cout << "Emplazamiento final: ";
-    display(cinta_inst.get_final_placement());
+    
+    cout << endl;
     cout << endl;
     for(int const& id: final_placement){
-        cout << "Ingresando: " << id << endl;
         cinta_inst.apply_BL(cinta_inst.get_item_by_id(id), false);
-        //cout << "ID: " << id << endl;
-        //cout << "LL: " << cinta_inst.get_placed_item_by_id(id).get_x_LL_coord() << ", " << cinta_inst.get_placed_item_by_id(id).get_y_LL_coord() << endl;
-        //cout << "UR: " << cinta_inst.get_placed_item_by_id(id).get_x_UR_coord() << ", " << cinta_inst.get_placed_item_by_id(id).get_y_UR_coord() << endl;
-
     }
+
+    cout << "---------- RESULTADO FINAL ----------" << endl;
+    cout << "Emplazamiento final: ";
+    for (auto const& id: cinta_inst.get_final_placement(false)) { 
+        cout << " ("<< id << ", " << cinta_inst.get_placed_item_by_id(id).get_flipped() << ")"; 
+    }
+    int final_height = cinta_inst.get_total_height(true);
+    int unused_area  = cinta_inst.get_max_width()*final_height - cinta_inst.calculate_used_area(true);
+    cout << endl;
+    cout << "Altura Final Alcanzada: " << final_height << endl;
+    cout << "Espacio Inutilizado: " << unused_area << endl;
     
-    cout << "Cantidad de items en la lista de emplazados: " << cinta_inst.n_placed << endl;
-    cout << "Altura Final Alcanzada: " << cinta_inst.get_total_height() << endl;
-    //for(Item const& item: cinta_inst.get_placed_items()){
-    //    cout << "Id: " << item.get_id() << endl;
-    //    cout << "x_LL: " << item.get_x_LL_coord() << endl;
-    //    cout << "y_LL: " << item.get_y_LL_coord() << endl;
-    //    cout << "Fliped: " << item.get_fliped() << endl;
-    //    cout << "-------" << endl;
-    //}
 }
 
 // Parsea la linea y retorna un struct con la info para inicializar los objetos a emplazar -- DEPRECATED
@@ -809,7 +780,7 @@ data_instancia read_instance(string file_path_buff){
 
             linestream >> item_id >> item_width >> item_height;
             Item dummy_obj(item_id, item_width, item_height);
-            cout << "Pushing " << item_id << endl;
+            //cout << "Pushing " << item_id << endl;
             objetos.push_back(dummy_obj);
         }
         line_number++;
@@ -821,9 +792,9 @@ data_instancia read_instance(string file_path_buff){
 
 
 
-
 // Main
 int main(int argc, char *argv[]) {
+    auto t1 = std::chrono::high_resolution_clock::now();
     string file_name;
     data_instancia data;
 
@@ -840,7 +811,28 @@ int main(int argc, char *argv[]) {
 
     Cinta cinta_instancia(data.n_objetos, data.width, data.instance_obj);
     hillClimbing_MM(cinta_instancia);
-    
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    cout << "Tiempo de ejecucion: " << duration << "(micro s)"<< endl;
+
+    std::regex e (".*/(.*)$");
+    std::smatch sm;
+    std::regex_match (file_name, sm, e);
+    std::string output_filename(sm[1]);
+    output_filename.append("_output.txt");
+    cout << "Generando archivo de salida: " << output_filename << endl;
+    ofstream outputFile;
+    outputFile.open(output_filename);
+    outputFile << cinta_instancia.get_total_height() << endl;
+    outputFile <<  cinta_instancia.get_max_width()*cinta_instancia.get_total_height() - cinta_instancia.calculate_used_area(false) << endl;
+    for (auto const& item: cinta_instancia.items_to_place) { 
+        outputFile << cinta_instancia.get_placed_item_by_id(item.get_id()).get_x_LL_coord() << "\t" << cinta_instancia.get_placed_item_by_id(item.get_id()).get_y_LL_coord() << "\t" <<cinta_instancia.get_placed_item_by_id(item.get_id()).get_flipped() << endl; 
+    }
+    outputFile.close();
+    cout << "Done!\n";
+
+
     return 0;
 }
 
